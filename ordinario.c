@@ -6,14 +6,18 @@
 #define SENSOR 0
 #define DEGREE 223
 
-#define R_out TRISEbits.RE0
-#define G_out TRISEbits.RE1
-#define B_out TRISEbits.RE2
-#define R_pin LATEbits.LE0
-#define G_pin LATEbits.LE1
-#define B_pin LATEbits.LE2
+
+//#define UP_BUTTON PORTBbits.RB0
+//#define DOWN_BUTTON PORTBbits.RB1
+#define R_out TRISBbits.RB5
+#define G_out TRISBbits.RB6
+#define B_out TRISBbits.RB7
+#define R_pin LATBbits.LB5
+#define G_pin LATBbits.LB6
+#define B_pin LATBbits.LB7
 #define Tau 500
 
+//void check2Buttons(void);
 double PID(double temp);
 void tempColor(double t);
 void updateLCD1(double t);
@@ -45,9 +49,11 @@ void main(void) {
     iniLCD();
     LCDcommand(DispOn);
     configInterrupts();
-    MoveCursor(0,LINE_UP);
-    LCDprint(11,"PRESS START",0);
-    while(INICIAR == 0);
+    while(INICIAR == 0){
+        MoveCursor(0,LINE_UP);
+        LCDprint(11,"PRESS START",0);
+        updateLCD2(t_objetive);  
+    }
     configHEATER();
     setHEATER_DC(H_DC);
     configADC(1);
@@ -66,6 +72,7 @@ void main(void) {
         temp = volts*100;//10.018 - 0.15;
         updateHEAT(temp);
         tempColor(temp);
+//        check2Buttons();
         switch(caso){
             case 0:
                 updateLCD1(temp);
@@ -110,11 +117,11 @@ void updateLCD1(double t){
     LCDchar(DEGREE);
     LCDchar('C');
     if(t < t_objetive-0.5){
-        LCDprint(8,"LOWER   ",0);
+        LCDprint(8," LOWER  ",0);
     }else if(t >= t_objetive-0.5 && t <= t_objetive+0.5){
-        LCDprint(8,"OK      ",0);
+        LCDprint(8," OK     ",0);
     }else if(t > t_objetive+0.5){
-        LCDprint(8,"HIGHER  ",0);
+        LCDprint(8," HIGHER ",0);
     }
 }
 
@@ -158,15 +165,15 @@ void updateHEAT(double temp){
 }
 
 void RED(){
-    R_pin = LOW;
-    G_pin = LOW;
+    R_pin = HI;
+    G_pin = HI;
     B_pin = HI;
 }
 
 void GREEN(){
-    R_pin = LOW;
-    G_pin = LOW;
-    B_pin = LOW;
+    R_pin = HI;
+    G_pin = HI;
+    B_pin = HI;
 }
 
 void YELLOW(){
@@ -188,6 +195,8 @@ void configInterrupts(){
     INTCON3bits.INT2E = ON; //Habilita la interrupción externa1;
     INTCON2bits.INTEDG2 = HI; //flanco descendente
     RCONbits.IPEN = OFF; //no priorities
+    INTCONbits.INT0E = HI;
+    INTCON3bits.INT1E = HI;
 }
 
 void __interrupt () miISR( ){
@@ -195,5 +204,15 @@ void __interrupt () miISR( ){
         if(INICIAR == 0)   INICIAR = 1;
         else if(INICIAR == 1) INICIAR = 0;
         INTCON3bits.INT2IF=LOW;
+    }
+    
+    if(INTCONbits.INT0F == HI){
+        t_objetive ++;
+        INTCONbits.INT0F = 0;
+    }
+    
+    if(INTCON3bits.INT1IF == HI){
+        t_objetive --;
+        INTCON3bits.INT1IF = 0;
     }
 }
